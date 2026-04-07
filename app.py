@@ -3,87 +3,89 @@ import google.generativeai as genai
 from PIL import Image
 import io
 
-# Configuração da página
-st.set_page_config(page_title="Calculador Visual Pro", page_icon="📏", layout="wide")
+# Configuração da página para um visual mais limpo
+st.set_page_config(page_title="Dimensionador Visual", page_icon="📏", layout="wide")
 
-# Estilo CSS para esconder elementos na impressão
+# CSS para esconder elementos desnecessários na hora de imprimir
 st.markdown("""
     <style>
     @media print {
-        .stButton, .stFileUploader, .stSidebar, header {
+        .stButton, .stFileUploader, .stSidebar, header, .stCallout {
             display: none !important;
         }
-        .main {
-            width: 100% !important;
-            padding: 0 !important;
-        }
+        .main { width: 100% !important; padding: 0 !important; }
     }
     </style>
 """, unsafe_allow_html=True)
 
-# Interface Lateral (Configurações)
-st.sidebar.title("⚙️ Configurações")
-api_key = st.sidebar.text_input("Insira sua Gemini API Key:", type="password")
-st.sidebar.info("Obtenha sua chave gratuita no [Google AI Studio](https://aistudio.google.com/)")
+# Interface Lateral
+st.sidebar.title("🚀 Configuração")
+# Dica: No Streamlit Cloud, você pode salvar isso em 'Secrets' como GEMINI_API_KEY
+user_key = st.sidebar.text_input("Nova Gemini API Key:", type="password")
 
-st.title("📏 Dimensionador de Projetos - Com. Visual")
-st.write("Suba um PDF, foto ou rascunho para calcular materiais automaticamente.")
+st.title("📏 Calculador Automático de Materiais")
+st.write("Transforme PDFs, fotos de rascunhos ou projetos em relatórios de insumos prontos para impressão.")
 
-# Upload de arquivo
-uploaded_file = st.file_uploader("Arraste o arquivo aqui (PDF, JPG, PNG)", type=['pdf', 'jpg', 'jpeg', 'png'])
+# Upload do arquivo
+arquivo_projeto = st.file_uploader("Suba seu PDF, Foto ou Rascunho", type=['pdf', 'jpg', 'jpeg', 'png'])
 
-if uploaded_file:
-    # Preparar a imagem/arquivo para o Gemini
-    image_data = uploaded_file.read()
+if arquivo_projeto:
+    conteudo_arquivo = arquivo_projeto.read()
     
-    col1, col2 = st.columns([1, 1])
+    col_previa, col_resultado = st.columns([1, 1.2])
     
-    with col1:
-        st.subheader("🖼️ Visualização")
-        if uploaded_file.type == "application/pdf":
-            st.warning("📄 PDF carregado. A IA analisará o documento completo.")
+    with col_previa:
+        st.subheader("🖼️ Arquivo Carregado")
+        if arquivo_projeto.type == "application/pdf":
+            st.info("📄 PDF detectado. A inteligência analisará todas as páginas do documento.")
         else:
-            st.image(image_data, use_container_width=True)
+            imagem = Image.open(io.BytesIO(conteudo_arquivo))
+            st.image(imagem, caption="Visualização do Projeto", use_container_width=True)
 
-    if st.button("🚀 Calcular e Gerar Relatório"):
-        if not api_key:
-            st.error("Por favor, insira a API Key na barra lateral.")
+    if st.sidebar.button("Calcular Materiais"):
+        if not user_key:
+            st.error("⚠️ Por favor, insira uma API Key válida na barra lateral.")
         else:
             try:
-                genai.configure(api_key=api_key)
-                # Trecho para listar modelos (apenas para teste)
-for m in genai.list_models():
-    if 'generateContent' in m.supported_generation_methods:
-        print(m.name)
+                # Configuração da IA
+                genai.configure(api_key=user_key)
+                # Usando o nome do modelo mais estável para evitar o erro 404
                 model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 
-                with st.spinner("Analisando projeto e calculando insumos..."):
-                    # Prompt especializado para Comunicação Visual
-                    prompt = """
-                    Analise este arquivo de projeto de comunicação visual. 
-                    1. Extraia os dados do cabeçalho: Nome do Cliente, Referência do Projeto e Data (se houver).
-                    2. Identifique todos os itens/peças.
-                    3. Calcule as quantidades necessárias:
-                       - Metros quadrados (m²) para adesivos, lonas, chapas.
-                       - Metros lineares (m) para perfis, metalon, fiação.
-                       - Metros cúbicos (m³) se houver volumes grandes (ex: totens com preenchimento).
-                    4. Apresente o resultado final em um formato de RELATÓRIO PROFISSIONAL E LIMPO.
-                    Use tabelas Markdown para os itens e destaque os totais.
+                with st.spinner("Analisando dimensões e rascunhos..."):
+                    # Prompt especializado para o seu negócio
+                    prompt_tecnico = """
+                    Aja como um especialista em orçamento para comunicação visual.
+                    Sua tarefa é ler este arquivo (que pode ser um PDF técnico ou um rascunho manual) e:
+                    
+                    1. IDENTIFICAR: O cabeçalho com nome do cliente, referência e data.
+                    2. CALCULAR: 
+                       - Área total em $m^2$ para adesivos, lonas ou placas.
+                       - Comprimento em metros (m) para perfis de alumínio, metalon ou fitas LED.
+                       - Volume em $m^3$ se houver estruturas volumétricas (como totens).
+                    3. FORMATAR: Crie um relatório limpo com o cabeçalho no topo e uma TABELA de itens.
+                    
+                    Se o rascunho estiver difícil de ler, use sua inteligência para deduzir as medidas mais lógicas baseadas no contexto (ex: um banner de '300x100' provavelmente é 3m x 1m).
                     """
                     
-                    # Envio para a IA (Trata PDF ou Imagem)
-                    content = [{"mime_type": uploaded_file.type, "data": image_data}, prompt]
-                    response = model.generate_content(content)
+                    # Preparação do conteúdo para a API
+                    partes_mensagem = [
+                        {"mime_type": arquivo_projeto.type, "data": conteudo_arquivo},
+                        prompt_tecnico
+                    ]
                     
-                    with col2:
-                        st.subheader("📋 Relatório de Materiais")
-                        st.markdown(response.text)
+                    relatorio = model.generate_content(partes_mensagem)
+                    
+                    with col_resultado:
+                        st.subheader("📋 Relatório de Insumos")
+                        st.markdown(relatorio.text)
                         
-                        # Botão de Impressão (Aciona o print do navegador)
-                        st.button("🖨️ Imprimir Relatório", on_click=lambda: st.write('<script>window.print();</script>', unsafe_allow_html=True))
+                        # Botão de impressão (JavaScript)
+                        st.button("🖨️ Imprimir agora", on_click=lambda: st.write('<script>window.print();</script>', unsafe_allow_html=True))
                         
             except Exception as e:
-                st.error(f"Erro ao processar: {e}")
+                st.error(f"Ocorreu um erro técnico: {e}")
+                st.info("Dica: Verifique se sua nova chave tem permissão para o modelo Gemini 1.5 Flash.")
 
 else:
-    st.info("Aguardando upload de projeto para iniciar.")
+    st.info("💡 Dica: Você pode tirar uma foto de um rascunho de papel e subir aqui para converter em relatório.")
