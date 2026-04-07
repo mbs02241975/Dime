@@ -51,6 +51,10 @@ if uploaded_file:
         else:
             try:
                 genai.configure(api_key=api_key)
+                # Trecho para listar modelos (apenas para teste)
+for m in genai.list_models():
+    if 'generateContent' in m.supported_generation_methods:
+        print(m.name)
                 model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 
                 with st.spinner("Analisando projeto e calculando insumos..."):
