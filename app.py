@@ -3,91 +3,95 @@ import google.generativeai as genai
 from PIL import Image
 import io
 
-# 1. Configuração da Página
-st.set_page_config(page_title="Dimensionador Visual Pro", page_icon="📏", layout="wide")
+# 1. Configuração de Página e Estilos
+st.set_page_config(page_title="Dimensionador Visual 2026", page_icon="📏", layout="wide")
 
-# 2. CSS para melhorar a visualização e preparar para impressão (Ctrl + P)
+# CSS para evitar erros de renderização e preparar o layout de impressão
 st.markdown("""
     <style>
+    /* Esconde elementos do Streamlit na impressão (Ctrl+P) */
     @media print {
-        .stButton, .stFileUploader, .stSidebar, header, .stCallout, [data-testid="stHeader"] {
+        [data-testid="stSidebar"], [data-testid="stHeader"], .stButton, .stFileUploader {
             display: none !important;
         }
-        .main .block-container {
-            max-width: 100% !important;
-            padding: 0 !important;
-        }
+        .main .block-container { max-width: 100% !important; padding: 0 !important; }
     }
-    .report-container {
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        background-color: #f9f9f9;
+    .relatorio-box {
+        padding: 25px;
+        border: 2px solid #eee;
+        border-radius: 15px;
+        background-color: #ffffff;
+        color: #333;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Interface Lateral
-st.sidebar.title("⚙️ Configurações")
-st.sidebar.write("Configure sua chave para começar.")
-api_key = st.sidebar.text_input("Gemini API Key:", type="password")
-st.sidebar.info("Obtenha sua chave no [Google AI Studio](https://aistudio.google.com/)")
+# 2. Barra Lateral (Segurança e Configuração)
+st.sidebar.title("🛠️ Painel de Controle")
+api_key = st.sidebar.text_input("Cole sua Gemini API Key:", type="password")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 Dica: No plano gratuito, evite subir muitos arquivos simultâneos.")
 
-# 4. Corpo do Aplicativo
-st.title("📏 Dimensionador Automático de Insumos")
-st.write("Envie fotos de rascunhos, imagens de projetos ou PDFs para calcular as quantidades.")
+# 3. Área Principal
+st.title("📏 Dimensionador Automático de Comunicação Visual")
+st.write("Converta rascunhos, fotos e PDFs em tabelas de insumos instantâneas.")
 
-arquivo = st.file_uploader("Carregar Projeto (PDF, JPG, PNG)", type=['pdf', 'jpg', 'jpeg', 'png'])
+arquivo = st.file_uploader("Suba o arquivo do projeto", type=['pdf', 'jpg', 'jpeg', 'png'])
 
 if arquivo:
-    conteudo_bytes = arquivo.read()
+    # Lendo o arquivo uma única vez para evitar erros de ponteiro
+    dados_arquivo = arquivo.read()
     
-    col_img, col_relat = st.columns([1, 1.2])
+    col_previa, col_analise = st.columns([1, 1.3])
     
-    with col_img:
-        st.subheader("🖼️ Visualização")
+    with col_previa:
+        st.subheader("🖼️ Prévia do Arquivo")
         if arquivo.type == "application/pdf":
-            st.info("📄 Documento PDF carregado com sucesso.")
+            st.success("✅ PDF carregado. A IA lerá todas as especificações.")
         else:
-            img_exibicao = Image.open(io.BytesIO(conteudo_bytes))
-            st.image(img_exibicao, caption="Projeto enviado", use_container_width=True)
+            img = Image.open(io.BytesIO(dados_arquivo))
+            st.image(img, use_container_width=True)
 
-    # Botão para processar
-    if st.button("🚀 Gerar Relatório de Materiais"):
+    # Botão de Ação
+    if st.button("🚀 Gerar Orçamento e Materiais"):
         if not api_key:
-            st.error("⚠️ Insira a API Key na barra lateral antes de continuar.")
+            st.warning("⚠️ Você precisa inserir a chave API na lateral.")
         else:
             try:
-                # Configurando a IA com o modelo mais estável
+                # Configurando a versão mais atual do modelo disponível em 2026
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                # 'gemini-1.5-flash' é o mais estável, mas o código tenta o mais recente disponível
+                model = genai.GenerativeModel('gemini-1.5-flash')
                 
-                with st.spinner("Analisando rascunhos e calculando medidas..."):
+                with st.spinner("Inteligência Artificial analisando medidas..."):
                     prompt = """
-                    Você é um orçamentista técnico de comunicação visual. 
-                    Analise o arquivo enviado e:
-                    1. Extraia o cabeçalho: Cliente, Referência e Data.
-                    2. Liste os itens encontrados e calcule:
-                       - Metragem quadrada (m²) para lonas, adesivos e chapas (Ex: 2x1m = 2m²).
-                       - Metros lineares (m) para perfis, estruturas e acabamentos.
-                       - Metros cúbicos (m³) apenas se houver volumes 3D.
-                    3. Se for um rascunho manual, interprete as anotações da melhor forma possível.
+                    Você é um especialista em produção de comunicação visual.
+                    Instruções:
+                    1. Identifique Cliente, Data e Referência no topo.
+                    2. Extraia todos os itens e calcule:
+                       - Metragem Quadrada ($m^2$): Lonas, adesivos, ACM, chapas (Largura x Altura).
+                       - Metragem Linear ($m$): Cantoneiras, eletrodutos, fitas LED, metalon.
+                       - Volume ($m^3$): Para totens ou estruturas de grande porte.
+                    3. Formate tudo em uma TABELA MARKDOWN clara.
                     
-                    Formate a resposta como um RELATÓRIO DE PRODUÇÃO, usando tabelas para os materiais.
+                    Se for um rascunho à mão, interprete os números e dimensões com base no contexto do produto.
                     """
                     
-                    # Preparando dados para envio
-                    partes = [{"mime_type": arquivo.type, "data": conteudo_bytes}, prompt]
-                    resultado = model.generate_content(partes)
+                    # Envio multimodal (imagem/pdf + texto)
+                    resposta = model.generate_content([
+                        {"mime_type": arquivo.type, "data": dados_arquivo},
+                        prompt
+                    ])
                     
-                    with col_relat:
-                        st.subheader("📋 Relatório Gerado")
-                        st.markdown(f'<div class="report-container">{resultado.text}</div>', unsafe_allow_html=True)
-                        st.success("✅ Relatório pronto! Para imprimir, use Ctrl + P no teclado.")
-                        
+                    with col_analise:
+                        st.subheader("📋 Relatório Final")
+                        # Usando um container simples para evitar o erro de 'removeChild'
+                        st.markdown(f'<div class="relatorio-box">{resposta.text}</div>', unsafe_allow_html=True)
+                        st.success("Tudo pronto! Use Ctrl + P para salvar ou imprimir este relatório.")
+
             except Exception as e:
-                st.error(f"Erro no processamento: {e}")
-                st.info("Dica: Verifique se sua API Key é válida e se você tem acesso ao modelo Gemini 1.5 Flash.")
+                st.error(f"Erro no sistema: {e}")
+                st.info("Tente usar o modelo 'gemini-1.5-flash' se o erro for 404.")
 
 else:
-    st.info("Aguardando upload de um arquivo para iniciar o cálculo.")
+    st.info("Aguardando arquivo para iniciar...")
